@@ -4,30 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>朋友對我的動態留言板</title>
-  
   <style>
     /* ==========================================================================
-       【1. 全局與變數設定】
-       可在這裡調整整體視覺主題色彩與卡片尺寸
+       【1. 全局與主題變數設定 (Theme Variables)】
        ========================================================================== */
     :root {
-      /* 背景色彩 */
-      --bg-color: #0b0d17;
-      --card-bg: rgba(23, 27, 44, 0.7);
-      
+      /* 背景色調 */
+      --bg-color: #0b0d12;          /* 主背景：極深藍黑 */
+      --card-bg: #151821;           /* 卡片背景：深灰藍 */
+      --card-border: #282c3a;       /* 卡片預設邊框顏色 */
+
       /* 文字顏色 */
-      --text-main: #f0f3f9;
-      --text-muted: #8a94a6;
-      
-      /* 霓虹特效主題色（可自行更換） */
-      --primary-neon: #00f3ff; /* 青藍色發光 */
-      --secondary-neon: #ff007f; /* 粉紫色發光 */
-      
-      /* 卡片間距與邊角 */
-      --gap-size: 20px;
-      --border-radius: 16px;
+      --text-main: #e2e8f0;         /* 主要文字：亮灰白 */
+      --text-sub: #8a94a6;          /* 次要/名字文字：柔和灰 */
+      --text-glow: #00f0ff;         /* 發光文字色 */
+
+      /* 【焦點輪播 (Highlight) 顏色設定】 */
+      --highlight-border: #00f0ff;  /* 輪播聚焦時的邊框顏色 ( Neon 青藍 ) */
+      --highlight-glow: rgba(0, 240, 255, 0.4); /* 輪播聚焦時的外發光色彩 */
+      --highlight-scale: 1.05;      /* 聚焦時卡片的放大倍數 */
+
+      /* 轉場動畫時間 */
+      --transition-speed: 0.5s;
     }
 
+    /* 基礎重置 */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -35,69 +36,62 @@
     }
 
     body {
-      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
       background-color: var(--bg-color);
       color: var(--text-main);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
       min-height: 100vh;
-      padding: 40px 20px;
+      padding: 2rem 1rem;
       display: flex;
       flex-direction: column;
       align-items: center;
-      background-image: 
-        radial-gradient(circle at 10% 20%, rgba(0, 243, 255, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(255, 0, 127, 0.08) 0%, transparent 40%);
     }
 
-    /* 頁面標題區塊 */
     header {
       text-align: center;
-      margin-bottom: 40px;
+      margin-bottom: 2.5rem;
     }
 
     header h1 {
-      font-size: 2.5rem;
-      font-weight: 800;
+      font-size: 2.2rem;
       letter-spacing: 2px;
-      background: linear-gradient(135deg, var(--primary-neon), var(--secondary-neon));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 10px;
+      color: #fff;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+      margin-bottom: 0.5rem;
     }
 
     header p {
-      color: var(--text-muted);
-      font-size: 1rem;
+      color: var(--text-sub);
+      font-size: 0.95rem;
     }
 
     /* ==========================================================================
-       【2. 載入中動畫 (Loading Animation)】
-       當資料還在讀取時顯示的酷炫霓虹加載圈
+       【2. 載入中 (Loading) 動畫樣式】
        ========================================================================== */
     #loading {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      margin-top: 100px;
+      margin-top: 4rem;
     }
 
     .spinner {
       width: 60px;
       height: 60px;
       border: 4px solid rgba(255, 255, 255, 0.1);
-      border-left-color: var(--primary-neon);
-      border-right-color: var(--secondary-neon);
+      border-top: 4px solid var(--highlight-border);
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+      box-shadow: 0 0 15px var(--highlight-glow);
     }
 
     .loading-text {
-      margin-top: 20px;
-      font-size: 1.2rem;
-      letter-spacing: 2px;
-      color: var(--primary-neon);
-      animation: pulse 1.5s ease-in-out infinite;
+      margin-top: 1.5rem;
+      font-size: 1.1rem;
+      letter-spacing: 3px;
+      color: var(--highlight-border);
+      text-shadow: 0 0 8px var(--highlight-glow);
+      animation: pulse 1.5s ease-in-out infinite alternate;
     }
 
     @keyframes spin {
@@ -106,309 +100,293 @@
     }
 
     @keyframes pulse {
-      0%, 100% { opacity: 0.4; }
-      50% { opacity: 1; }
+      0% { opacity: 0.4; }
+      100% { opacity: 1; }
     }
 
     /* ==========================================================================
-       【3. 瀑布流版面設定 (Masonry Layout)】
-       利用 CSS Columns 實現高低錯落排列
+       【3. 瀑布流排版 (Masonry Layout)】
        ========================================================================== */
-    .wall-container {
+    .masonry-container {
       width: 100%;
       max-width: 1200px;
-      /* 響應式欄數設定：根據螢幕寬度自動調整欄數 */
-      column-count: 3;
-      column-gap: var(--gap-size);
-      display: none; /* 預設隱藏，讀取完畢後顯示 */
+      column-count: 3;             /* 預設 3 欄 */
+      column-gap: 1.5rem;          /* 欄位間距 */
+      display: none;              /* 初始隱藏，資料載入後顯示 */
     }
 
-    /* 螢幕變小時代調整欄數 */
     @media (max-width: 900px) {
-      .wall-container { column-count: 2; }
+      .masonry-container {
+        column-count: 2;          /* 平板 2 欄 */
+      }
     }
+
     @media (max-width: 600px) {
-      .wall-container { column-count: 1; }
+      .masonry-container {
+        column-count: 1;          /* 手機 1 欄 */
+      }
     }
 
     /* ==========================================================================
-       【4. 留言卡片樣式與動態輪播特效】
-       控制預設卡片樣式與被聚焦（Highlight）時的亮起放大特效
+       【4. 留言卡片樣式與 Focus 特效】
        ========================================================================== */
     .card {
-      background: var(--card-bg);
-      backdrop-filter: blur(10px); /* 玻璃擬態模糊效果 */
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: var(--border-radius);
-      padding: 24px;
-      margin-bottom: var(--gap-size);
-      break-inside: avoid; /* 關鍵：防止卡片在欄位切割處被截斷 */
-      
-      /* 平滑動畫過渡時間 */
-      transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      break-inside: avoid;
+      page-break-inside: avoid;
+      transition: all var(--transition-speed) cubic-bezier(0.25, 1, 0.5, 1);
       position: relative;
-      opacity: 0.6; /* 預設沒被選中的卡片稍微變暗 */
-      filter: blur(1px); /* 預設沒被選中的卡片微模糊 */
-      transform: scale(0.98);
+      opacity: 0.7;
+      filter: blur(0.5px);
     }
 
-    /* 作者名字標題 */
-    .card-author {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--primary-neon);
-      margin-bottom: 12px;
+    .card-header {
       display: flex;
+      justify-content: space-between;
       align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     }
 
-    .card-author::before {
-      content: '✦';
-      margin-right: 8px;
-      color: var(--secondary-neon);
+    .card-author {
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: var(--text-glow);
     }
 
-    /* 留言內容 */
-    .card-content {
+    .card-time {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+    }
+
+    .card-body {
       font-size: 0.95rem;
       line-height: 1.6;
       color: var(--text-main);
-      white-space: pre-wrap; /* 保持留言的換行格式 */
       word-break: break-word;
+      white-space: pre-wrap;
     }
 
-    /* 時間戳記 */
-    .card-time {
-      margin-top: 16px;
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      text-align: right;
-    }
-
-    /* --------------------------------------------------
-       【重點】聚焦放大亮起特效 (Active Highlight)
-       -------------------------------------------------- */
-    .card.active {
-      opacity: 1; /* 恢復完全不透明 */
-      filter: blur(0px); /* 清除模糊 */
-      transform: scale(1.05); /* 放大 5% */
+    /* 輪播 Highlight 樣式 */
+    .card.highlight {
+      opacity: 1;
+      filter: blur(0px);
+      transform: scale(var(--highlight-scale));
+      border-color: var(--highlight-border);
+      box-shadow: 0 0 25px var(--highlight-glow), inset 0 0 10px var(--highlight-glow);
       z-index: 10;
-      
-      /* 邊框變色與外發光效果 */
-      border-color: var(--primary-neon);
-      box-shadow: 
-        0 0 20px rgba(0, 243, 255, 0.4),
-        inset 0 0 15px rgba(0, 243, 255, 0.1);
+    }
+
+    .card.dimmed {
+      opacity: 0.35;
+      filter: blur(1.5px);
+      transform: scale(0.98);
     }
   </style>
 </head>
 <body>
 
-  <!-- 頁面頂部 -->
   <header>
-    <h1>朋友對我的動態留言板</h1>
-    <p>Every message is a shining moment</p>
+    <h1>SECRET MESSAGES</h1>
+    <p>朋友對我的悄悄話留言牆</p>
   </header>
 
-  <!-- 讀取中動畫區塊 -->
   <div id="loading">
     <div class="spinner"></div>
     <div class="loading-text">讀取留言中...</div>
   </div>
 
-  <!-- 留言牆容器 -->
-  <div id="wall" class="wall-container"></div>
+  <main id="wall" class="masonry-container"></main>
 
-  <!-- ==========================================================================
-     【5. JavaScript 邏輯控制】
-     包含：解析 CSV (處理逗號問題)、動態渲染 DOM、輪播計時器控制
-     ========================================================================== */
   <script>
-    // CSV 資料來源網址
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQQOeg2L48MiuIePx8FSbd641f1HbJ0jio1_mK67K1cHgCjWQ3xt8FUzZd9CUfeQo9OPi-CltWWdXP8/pub?output=csv';
+    /* ==========================================================================
+       【5. 邏輯與網址設定】
+       ========================================================================== */
+    const RAW_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRt9_o2CabeG0Gb-SfrCYqD6HKBqPTbTK3gqpNn2UttlfMlUuKAaMx3yYDJ_y-RiqJulVSBSIdi-YQ1/pub?output=csv';
 
-    // --------------------------------------------------------------------------
-    // 【參數設定區】可在此修改輪播秒數與輪播模式
-    // --------------------------------------------------------------------------
-    const ROTATE_INTERVAL_MS = 3000; // 輪播間隔時間（單位：毫秒，3000 = 3秒）
+    // 輪播間隔（毫秒）：3000ms = 3 秒
+    const ROTATE_INTERVAL = 3000;
 
-    let cardsData = [];      // 儲存解析後的留言資料
-    let cardElements = [];   // 儲存 DOM 卡片元件
-    let currentIndex = 0;    // 當前高亮顯示的卡片索引
-    let timer = null;        // 計時器變數
+    let cardsData = [];
+    let cardElements = [];
+    let currentIndex = 0;
+    let carouselTimer = null;
 
-    // 網頁載入後發動
-    document.addEventListener('DOMContentLoaded', fetchAndRenderMessages);
+    /* ==========================================================================
+       【6. 健壯的 CSV Fetcher (包含 CORS 降級處理與 Cache Busting)】
+       ========================================================================== */
+    async function fetchCSVText() {
+      // 加上 timestamp 避免瀏覽器快取
+      const cacheBustUrl = `${RAW_CSV_URL}&t=${Date.now()}`;
 
-    /**
-     * 從 Google 試算表 Fetch CSV 資料並發動流程
-     */
-    async function fetchAndRenderMessages() {
       try {
-        const response = await fetch(CSV_URL);
-        if (!response.ok) throw new Error('網路回應異常');
-        
-        const csvText = await response.text();
-        cardsData = parseCSV(csvText);
-
-        // 移除標頭欄位（時間戳記, 名字, 悄悄話），只保留真正的內容
-        if (cardsData.length > 0) {
-          cardsData.shift(); 
+        // 第一嘗試：直接 fetch
+        const res = await fetch(cacheBustUrl);
+        if (res.ok) {
+          const text = await res.text();
+          // 驗證是否拿到有效的 CSV (而不是 HTML 登入/警告頁面)
+          if (!text.trim().startsWith('<!DOCTYPE html')) {
+            return text;
+          }
         }
+      } catch (err) {
+        console.warn('直接讀取 CSV 失敗，切換至 CORS Proxy...', err);
+      }
 
-        // 隱藏 Loading 動畫，顯示留言牆
+      // 第二嘗試：若直接讀取失敗，經由公開跨網域代理 (AllOrigins) 讀取
+      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(cacheBustUrl)}`;
+      const proxyRes = await fetch(proxyUrl);
+      if (!proxyRes.ok) throw new Error(`Proxy HTTP error! Status: ${proxyRes.status}`);
+      return await proxyRes.text();
+    }
+
+    /* ==========================================================================
+       【7. CSV 解析器】
+       ========================================================================== */
+    function parseCSV(text) {
+      const lines = text.split(/\r\n|\n/);
+      const result = [];
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const row = [];
+        let insideQuote = false;
+        let entry = '';
+
+        for (let j = 0; j < line.length; j++) {
+          const char = line[j];
+
+          if (char === '"') {
+            if (insideQuote && line[j + 1] === '"') {
+              entry += '"';
+              j++;
+            } else {
+              insideQuote = !insideQuote;
+            }
+          } else if (char === ',' && !insideQuote) {
+            row.push(entry.trim());
+            entry = '';
+          } else {
+            entry += char;
+          }
+        }
+        row.push(entry.trim());
+        result.push(row);
+      }
+      return result;
+    }
+
+    /* ==========================================================================
+       【8. 主流程：取得資料並渲染】
+       ========================================================================== */
+    async function fetchMessages() {
+      try {
+        const csvText = await fetchCSVText();
+        const rawData = parseCSV(csvText);
+
+        // 排除標題列，映射欄位 (0:時間, 1:名字, 2:悄悄話)
+        cardsData = rawData.slice(1).map(row => ({
+          timestamp: row[0] || '',
+          name: row[1] || '匿名朋友',
+          message: row[2] || ''
+        })).filter(item => item.name || item.message); // 過濾全空資料
+
         document.getElementById('loading').style.display = 'none';
         const wall = document.getElementById('wall');
         wall.style.display = 'block';
 
         if (cardsData.length === 0) {
-          wall.innerHTML = '<p style="text-align:center;">目前還沒有留言喔！</p>';
+          wall.innerHTML = '<p style="text-align:center; color: var(--text-sub);">目前試算表中還沒有任何留言喔！</p>';
           return;
         }
 
-        // 渲染卡片至畫面上
         renderCards(cardsData);
-
-        // 啟動輪播計時器
-        startHighlightCarousel();
+        startCarousel();
 
       } catch (error) {
-        console.error('抓取資料失敗:', error);
+        console.error('CSV 載入失敗詳細資訊:', error);
         document.getElementById('loading').innerHTML = `
-          <div style="color: #ff4757; text-align: center;">
-            <p>載入留言失敗！</p>
-            <p style="font-size:0.8rem; margin-top:8px;">${error.message}</p>
+          <div style="color: #ff4757; text-align: center; max-width: 400px;">
+            <p style="font-weight: bold; font-size: 1.1rem; margin-bottom: 0.5rem;">無法載入 Google 試算表</p>
+            <p style="font-size: 0.85rem; color: var(--text-sub); line-height: 1.5;">
+              請確認該 Google 試算表已開啟「發佈到網路」權限（檔案 -> 分享 -> 發佈到網路 -> 選擇 CSV 格式）。
+            </p>
           </div>
         `;
       }
     }
 
-    /**
-     * 正確解析 CSV 的 Function
-     * 特殊處理：當留言內容中包含「逗號 ,」或「換行」時，雙引號內部的逗號不該被拆分
-     */
-    function parseCSV(text) {
-      const result = [];
-      let row = [];
-      let field = '';
-      let inQuotes = false;
-
-      for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        const nextChar = text[i + 1];
-
-        if (char === '"') {
-          // 處理逃逸引號 ("")
-          if (inQuotes && nextChar === '"') {
-            field += '"';
-            i++; 
-          } else {
-            // 切換引號狀態
-            inQuotes = !inQuotes;
-          }
-        } else if (char === ',' && !inQuotes) {
-          // 遇到逗號且不在引號內，拆分欄位
-          row.push(field.trim());
-          field = '';
-        } else if ((char === '\r' || char === '\n') && !inQuotes) {
-          // 遇到換行且不在引號內，結束當前這列
-          if (char === '\r' && nextChar === '\n') {
-            i++; // 跳過 \r\n 的 \n
-          }
-          row.push(field.trim());
-          if (row.some(f => f !== '')) { // 忽略空白列
-            result.push(row);
-          }
-          row = [];
-          field = '';
-        } else {
-          field += char;
-        }
-      }
-
-      // 補上最後一個欄位與最後一列
-      if (field || row.length > 0) {
-        row.push(field.trim());
-        result.push(row);
-      }
-
-      return result;
-    }
-
-    /**
-     * 將資料動態產生 DOM 節點並掛載至網頁
-     */
-    function renderCards(dataList) {
+    function renderCards(data) {
       const wall = document.getElementById('wall');
       wall.innerHTML = '';
 
-      dataList.forEach((item, index) => {
-        // 欄位預設順序：[0]時間戳記, [1]名字, [2]悄悄話
-        const timestamp = item[0] || '';
-        const name = item[1] || '匿名朋友';
-        const message = item[2] || '（無留言內容）';
-
-        // 建立卡片元件
+      data.forEach((item, index) => {
         const card = document.createElement('div');
         card.className = 'card';
         card.setAttribute('data-index', index);
 
+        const formattedTime = item.timestamp.split(' ')[0] || item.timestamp;
+
         card.innerHTML = `
-          <div class="card-author">${escapeHTML(name)}</div>
-          <div class="card-content">${escapeHTML(message)}</div>
-          <div class="card-time">${escapeHTML(timestamp)}</div>
+          <div class="card-header">
+            <span class="card-author">@ ${escapeHTML(item.name)}</span>
+            <span class="card-time">${escapeHTML(formattedTime)}</span>
+          </div>
+          <div class="card-body">${escapeHTML(item.message)}</div>
         `;
 
         wall.appendChild(card);
       });
 
-      // 取得所有已生成的卡片元件陣列
       cardElements = Array.from(document.querySelectorAll('.card'));
     }
 
-    /**
-     * XSS 防護：跳脫 HTML 特殊字元，確保安全性
-     */
     function escapeHTML(str) {
-      return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+      return str.replace(/[&<>'"]/g, 
+        tag => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          "'": '&#39;',
+          '"': '&quot;'
+        }[tag] || tag)
+      );
     }
 
-    /**
-     * 【輪播重點控制】使用 setInterval 定時讓卡片高亮
-     */
-    function startHighlightCarousel() {
+    /* ==========================================================================
+       【9. 輪播 Highlight 控制】
+       ========================================================================== */
+    function startCarousel() {
       if (cardElements.length === 0) return;
 
-      // 預設讓第一張卡片亮起
-      updateActiveCard(currentIndex);
+      highlightCard(currentIndex);
 
-      // 設定計時器，每隔指定秒數切換至下一張
-      timer = setInterval(() => {
+      carouselTimer = setInterval(() => {
         currentIndex = (currentIndex + 1) % cardElements.length;
-        updateActiveCard(currentIndex);
-      }, ROTATE_INTERVAL_MS);
+        highlightCard(currentIndex);
+      }, ROTATE_INTERVAL);
     }
 
-    /**
-     * 切換 Active 類別以呈現高亮與發光特效
-     */
-    function updateActiveCard(activeIndex) {
+    function highlightCard(targetIndex) {
       cardElements.forEach((card, index) => {
-        if (index === activeIndex) {
-          card.classList.add('active');
-          
-          // 可選：當畫面很長時，自動平滑滾動讓當前高亮的卡片出現在視野中
-          card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        if (index === targetIndex) {
+          card.classList.add('highlight');
+          card.classList.remove('dimmed');
         } else {
-          card.classList.remove('active');
+          card.classList.remove('highlight');
+          card.classList.add('dimmed');
         }
       });
     }
+
+    window.addEventListener('DOMContentLoaded', fetchMessages);
   </script>
 </body>
 </html>
